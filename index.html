@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1115" />
+  <title>Matt Training Log</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1 id="appTitle">Training</h1>
+    <nav>
+      <button data-view="today" class="active">Today</button>
+      <button data-view="log">Log</button>
+      <button data-view="settings">Settings</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- TODAY (read-only) -->
+    <section id="view-today" class="view active">
+      <div id="todayStatus" class="status"></div>
+      <div id="todayBody"></div>
+    </section>
+
+    <!-- LOG (the form) -->
+    <section id="view-log" class="view">
+      <div id="logStatus" class="status"></div>
+      <form id="logForm" autocomplete="off"></form>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="view-settings" class="view">
+      <h2>Settings</h2>
+      <p class="hint">Stored only on this device. Use a fine-grained token scoped
+        to the single private repo, Contents: read &amp; write.</p>
+      <label>GitHub token<input id="cfgToken" type="password" placeholder="github_pat_…" /></label>
+      <label>Owner (user/org)<input id="cfgOwner" type="text" placeholder="your-github-username" /></label>
+      <label>Repo<input id="cfgRepo" type="text" placeholder="Matt-Training" /></label>
+      <label>Branch<input id="cfgBranch" type="text" value="master" /></label>
+      <label>Prescription path<input id="cfgDataPath" type="text" value="docs/today.json" /></label>
+      <label>Inbox folder<input id="cfgInbox" type="text" value="inbox" /></label>
+      <div class="row">
+        <button id="cfgSave" type="button">Save &amp; test</button>
+        <button id="cfgClear" type="button" class="ghost">Clear token</button>
+      </div>
+      <div id="cfgStatus" class="status"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

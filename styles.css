@@ -1,0 +1,100 @@
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --panel-2: #1f2430;
+  --line: #2a3140;
+  --text: #e6e9ef;
+  --muted: #97a0b0;
+  --accent: #5b9dff;
+  --accent-2: #1d2b45;
+  --warn: #ffb454;
+  --ok: #4cd07d;
+  --bad: #ff6b6b;
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.45 -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+header {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  padding: 10px 14px calc(10px + env(safe-area-inset-top));
+  padding-top: max(10px, env(safe-area-inset-top));
+}
+header h1 { margin: 0 0 8px; font-size: 18px; font-weight: 700; }
+nav { display: flex; gap: 8px; }
+nav button {
+  flex: 1; padding: 8px 6px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--muted); border-radius: 10px;
+  font-size: 14px; font-weight: 600;
+}
+nav button.active { color: var(--text); background: var(--accent-2); border-color: var(--accent); }
+
+main { padding: 14px; max-width: 720px; margin: 0 auto; }
+.view { display: none; }
+.view.active { display: block; }
+
+h2 { font-size: 16px; margin: 4px 0 12px; }
+
+.status { font-size: 14px; color: var(--muted); margin: 4px 0 12px; min-height: 1.2em; }
+.status.ok { color: var(--ok); }
+.status.err { color: var(--bad); }
+.hint { color: var(--muted); font-size: 13px; }
+
+label { display: block; margin: 10px 0; font-size: 13px; color: var(--muted); }
+input, textarea, select {
+  width: 100%; margin-top: 4px; padding: 10px; font-size: 16px;
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--line); border-radius: 10px;
+}
+textarea { min-height: 60px; resize: vertical; }
+
+.row { display: flex; gap: 10px; align-items: center; }
+button {
+  padding: 12px 14px; border-radius: 10px; border: 1px solid var(--accent);
+  background: var(--accent); color: #07101f; font-weight: 700; font-size: 15px;
+}
+button.ghost { background: transparent; color: var(--muted); border-color: var(--line); }
+button:disabled { opacity: .5; }
+
+/* Today reference tables */
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin: 12px 0; }
+.card h3 { margin: 0 0 8px; font-size: 15px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 6px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+.note-warn { color: var(--warn); font-weight: 600; }
+.footer-line { color: var(--muted); font-size: 13px; margin-top: 10px; }
+
+/* Log form */
+.gympick { display: flex; gap: 8px; margin: 6px 0 16px; }
+.gympick button { flex: 1; }
+.gympick button.sel { outline: 2px solid var(--accent); }
+
+.lift { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; margin: 10px 0; }
+.lift.skipped { opacity: .55; }
+.lift .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.lift .name { font-weight: 700; font-size: 15px; }
+.lift .pres { color: var(--muted); font-size: 12px; }
+.lift .last { color: var(--muted); font-size: 12px; margin: 2px 0 8px; }
+.fields { display: grid; grid-template-columns: 1.4fr .7fr .9fr .8fr; gap: 8px; }
+.fields.perset { grid-template-columns: 1.4fr 1.6fr .8fr; }
+.fields label { margin: 0; }
+.liftctl { display: flex; gap: 14px; align-items: center; margin-top: 8px; font-size: 13px; }
+.liftctl label { margin: 0; display: flex; gap: 6px; align-items: center; color: var(--muted); }
+.liftctl input[type=checkbox] { width: auto; margin: 0; }
+
+.meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.meta-grid label.full { grid-column: 1 / -1; }
+
+#preview { white-space: pre-wrap; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin: 12px 0; }
+.actions { display: flex; gap: 10px; margin: 14px 0 30px; }
+.actions button { flex: 1; }
