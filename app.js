@@ -13,10 +13,18 @@ const LS = {
   cfg: "mtl.cfg",
   today: "mtl.today",       // last good today.json (offline fallback)
   draft: "mtl.draft.",      // + session number
+  submitted: "mtl.submitted",  // JSON array of session numbers submitted from this device
 };
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+
+// HTML-escape every dynamic value before it goes into innerHTML or an attribute.
+// today.json is engine-authored, but it arrives over the network into a page that
+// holds a GitHub PAT in localStorage — an injected <script>/onerror could exfiltrate
+// it. FORM values are user-typed. Escaping both closes that XSS→token-theft chain.
+const ESC_MAP = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+const esc = s => String(s ?? "").replace(/[&<>"']/g, ch => ESC_MAP[ch]);
 
 // ---------------------------------------------------------------- config ----
 function loadCfg() {
@@ -54,8 +62,12 @@ async function ghGetSha(c, path) {
 }
 
 function toBase64(str) {
-  // UTF-8 safe base64 encode.
-  return btoa(unescape(encodeURIComponent(str)));
+  // UTF-8 safe base64 encode. TextEncoder yields the UTF-8 bytes directly,
+  // replacing the deprecated unescape(encodeURIComponent(...)) idiom.
+  const bytes = new TextEncoder().encode(str);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
 }
 
 async function ghPutFile(c, path, text, message) {
@@ -126,11 +138,11 @@ function showCachedToday() {
 function refTable(title, rows) {
   if (!rows || !rows.length) return "";
   const body = rows.map(r => {
-    const note = r.note ? `<span class="note-warn">${r.note}</span>` : "";
-    return `<tr><td>${r.lift || ""}</td><td>${r.gym || ""}</td><td>${r.prescribed || ""}</td>`
-         + `<td>${r.last || ""}</td><td>${r.range || ""}</td><td>${note}</td></tr>`;
+    const note = r.note ? `<span class="note-warn">${esc(r.note)}</span>` : "";
+    return `<tr><td>${esc(r.lift)}</td><td>${esc(r.gym)}</td><td>${esc(r.prescribed)}</td>`
+         + `<td>${esc(r.last)}</td><td>${esc(r.range)}</td><td>${note}</td></tr>`;
   }).join("");
-  return `<div class="card"><h3>${title}</h3><table>
+  return `<div class="card"><h3>${esc(title)}</h3><table>
     <thead><tr><th>Lift</th><th>Gym</th><th>Prescribed</th><th>Last</th><th>Range</th><th>Note</th></tr></thead>
     <tbody>${body}</tbody></table></div>`;
 }
@@ -139,12 +151,12 @@ function renderToday() {
   if (!DATA) return;
   const other = DATA.day === "A" ? "B" : "A";
   $("#appTitle").textContent = `S${DATA.session} · Day ${DATA.day}`;
-  let html = `<div class="card"><h3>Next workout — S${DATA.session}, Day ${DATA.day}</h3>`;
+  let html = `<div class="card"><h3>Next workout — S${esc(DATA.session)}, Day ${esc(DATA.day)}</h3>`;
   html += `<p class="hint">Tap <b>Log</b> to record this session.</p></div>`;
   html += refTable(`Day ${DATA.day} — next (S${DATA.session})`, DATA.reference["day" + DATA.day]);
   html += refTable(`Day ${other} — following (S${DATA.session + 1})`, DATA.reference["day" + other]);
   if (DATA.lastSessionFooter)
-    html += `<p class="footer-line">Last session: ${DATA.lastSessionFooter}</p>`;
+    html += `<p class="footer-line">Last session: ${esc(DATA.lastSessionFooter)}</p>`;
   $("#todayBody").innerHTML = html;
 }
 
@@ -180,30 +192,38 @@ function renderLog() {
   const iso = FORM._date || `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
   FORM._date = iso;
 
-  let h = `<div class="gympick">` +
+  let h = "";
+  if (alreadySubmitted(DATA.session))
+    h += `<div class="card dup-warn">⚠ S${esc(DATA.session)} was already submitted from this phone. `
+       + `If the PC hasn't processed it yet, this plan is stale — submitting again duplicates the session `
+       + `(the PC will refuse it). Pull &amp; log on the PC first, then reload here.</div>`;
+
+  h += `<div class="gympick">` +
     (DATA.gyms || ["home","work"]).map(g =>
-      `<button type="button" class="gymbtn ${g===GYM?"sel":""}" data-gym="${g}">${g}</button>`
+      `<button type="button" class="gymbtn ${g===GYM?"sel":""}" data-gym="${esc(g)}">${esc(g)}</button>`
     ).join("") + `</div>`;
 
-  h += `<label>Date<input id="f_date" type="date" value="${iso}"></label>`;
+  h += `<label>Date<input id="f_date" type="date" value="${esc(iso)}"></label>`;
 
   DATA.lifts.forEach((lift, i) => {
     const st = FORM[i];
     const v = variantFor(lift, GYM);
-    const pres = `${v.loadToken} · ${v.sets}×${v.reps}`;
-    const note = v.note ? `<span class="note-warn">${v.note}</span>` : "";
+    const pres = `${esc(v.loadToken)} · ${esc(v.sets)}×${esc(v.reps)}`;
+    const top = (v.range && v.range[1] != null) ? `top ${esc(v.range[1])}` : "";
+    const note = v.note ? `<span class="note-warn">${esc(v.note)}</span>` : "";
     const fieldsCls = st.perSet ? "fields perset" : "fields";
     const repFields = st.perSet
-      ? `<label>reps (per set)<input data-i="${i}" data-k="perSetReps" type="text" inputmode="numeric" value="${st.perSetReps}" placeholder="7/7/6"></label>`
-      : `<label>sets<input data-i="${i}" data-k="sets" type="number" inputmode="numeric" value="${st.sets}"></label>
-         <label>reps<input data-i="${i}" data-k="reps" type="text" inputmode="numeric" value="${st.reps}"></label>`;
+      ? `<label>reps (per set)<input data-i="${i}" data-k="perSetReps" type="text" inputmode="numeric" value="${esc(st.perSetReps)}" placeholder="7/7/6"></label>`
+      : `<label>sets<input data-i="${i}" data-k="sets" type="number" inputmode="numeric" value="${esc(st.sets)}"></label>
+         <label>reps<input data-i="${i}" data-k="reps" type="text" inputmode="numeric" value="${esc(st.reps)}"></label>`;
     h += `<div class="lift ${st.skip?"skipped":""}" data-lift="${i}">
-      <div class="top"><span class="name">${lift.label}</span><span class="pres">${pres} ${note}</span></div>
-      <div class="last">last: ${v.last || "—"}</div>
+      <div class="top"><span class="name">${esc(lift.label)}</span>
+        <span class="presbox"><span class="pres">${pres} ${note}</span>${top ? `<span class="toprange">${top}</span>` : ""}</span></div>
+      <div class="last">last: ${esc(v.last || "—")}</div>
       <div class="${fieldsCls}">
-        <label>load<input data-i="${i}" data-k="weight" type="text" value="${st.weight}" ${st.skip?"disabled":""}></label>
+        <label>load<input data-i="${i}" data-k="weight" type="text" value="${esc(st.weight)}" ${st.skip?"disabled":""}></label>
         ${repFields}
-        <label>RPE<input data-i="${i}" data-k="rpe" type="number" inputmode="decimal" step="0.5" value="${st.rpe}" placeholder="–" ${st.skip?"disabled":""}></label>
+        <label>RPE<input data-i="${i}" data-k="rpe" type="number" inputmode="decimal" step="0.5" value="${esc(st.rpe)}" placeholder="–" ${st.skip?"disabled":""}></label>
       </div>
       <div class="liftctl">
         <label><input type="checkbox" data-i="${i}" data-k="perSet" ${st.perSet?"checked":""}> per-set reps</label>
@@ -217,10 +237,10 @@ function renderLog() {
   for (const f of DATA.metadataFields) {
     const full = f.type === "text" ? "full" : "";
     const val = (FORM._meta && FORM._meta[f.key]) || "";
-    const unit = f.unit ? ` (${f.unit})` : "";
-    h += `<label class="${full}">${f.label}${unit}`
-       + `<input data-meta="${f.key}" type="${f.type==="number"?"number":"text"}" `
-       + `inputmode="${f.type==="number"?"decimal":"text"}" value="${val}"></label>`;
+    const unit = f.unit ? ` (${esc(f.unit)})` : "";
+    h += `<label class="${full}">${esc(f.label)}${unit}`
+       + `<input data-meta="${esc(f.key)}" type="${f.type==="number"?"number":"text"}" `
+       + `inputmode="${f.type==="number"?"decimal":"text"}" value="${esc(val)}"></label>`;
   }
   h += `</div></div>`;
 
@@ -303,6 +323,24 @@ function buildLogText() {
 
 function updatePreview() { const p = $("#preview"); if (p) p.textContent = buildLogText(); }
 
+// --------------------------------------------------- duplicate-submit guard ----
+// Record which session numbers were already submitted from this device. If the
+// PC hasn't yet processed a submission, today.json still shows that session, so
+// the phone would build a second inbox file for it — the engine's P1-1 guard
+// aborts on the duplicate, but warning here catches it before the round-trip.
+function submittedSessions() {
+  try { return JSON.parse(localStorage.getItem(LS.submitted)) || []; }
+  catch { return []; }
+}
+function recordSubmission(session) {
+  const list = submittedSessions();
+  if (!list.includes(session)) {
+    list.push(session);
+    localStorage.setItem(LS.submitted, JSON.stringify(list.slice(-20)));  // cap growth
+  }
+}
+function alreadySubmitted(session) { return submittedSessions().includes(session); }
+
 // ----------------------------------------------------------- draft/submit ----
 function saveDraft() {
   if (!DATA) return;
@@ -329,7 +367,9 @@ async function submit() {
   try {
     await ghPutFile(c, path, text, `phone log S${DATA.session}`);
     localStorage.removeItem(LS.draft + DATA.session);
+    recordSubmission(DATA.session);
     setLogStatus(`Submitted → ${path}. On the PC: git pull, then log_session.py --log ${path}`, "ok");
+    renderLog();   // surfaces the duplicate-submit banner if this plan is still shown
   } catch (e) {
     setLogStatus(`${e.message}. Draft kept — try again when online.`, "err");
   } finally {

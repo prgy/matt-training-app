@@ -1,10 +1,12 @@
 /* App-shell cache so the PWA opens offline. The prescription (today.json) is NOT
  * cached here — app.js keeps the last good copy in localStorage and always tries
  * the network first for fresh data. Bump CACHE when shell files change. */
-const CACHE = "mtl-shell-v1";
+const CACHE = "mtl-shell-v4";
 const SHELL = [
   "./", "./index.html", "./app.js", "./styles.css",
   "./manifest.webmanifest", "./icon.svg", "./icon-maskable.svg",
+  "./icon-192.png", "./icon-512.png",
+  "./icon-maskable-192.png", "./icon-maskable-512.png",
 ];
 
 self.addEventListener("install", e => {
